@@ -3,7 +3,6 @@
 
 #include <QtGlobal>
 #include <QHash>
-#include <QLinkedList>
 #include <QList>
 #include <QPair>
 
@@ -34,8 +33,8 @@ class OrderedMap
 {
     class OMHash;
 
-    typedef typename QLinkedList<Key>::iterator QllIterator;
-    typedef typename QLinkedList<Key>::const_iterator QllConstIterator;
+    typedef typename std::list<Key>::iterator QllIterator;
+    typedef typename std::list<Key>::const_iterator QllConstIterator;
     typedef QPair<Value, QllIterator> OMHashValue;
 
     typedef typename OMHash::iterator OMHashIterator;
@@ -339,7 +338,7 @@ private:
     void copy(const OrderedMap<Key, Value> &other);
 
     OMHash data;
-    QLinkedList<Key> insertOrder;
+    std::list<Key> insertOrder;
 };
 
 template <typename Key, typename Value>
@@ -429,7 +428,11 @@ bool OrderedMap<Key, Value>::isEmpty() const
 template<typename Key, typename Value>
 QList<Key> OrderedMap<Key, Value>::keys() const
 {
-    return QList<Key>::fromStdList(insertOrder.toStdList());
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    return QList<Key>(insertOrder.begin(), insertOrder.end());
+#else
+    return QList<Key>::fromStdList(insertOrder);
+#endif
 }
 
 template<typename Key, typename Value>
@@ -566,6 +569,26 @@ template <typename Key, typename Value>
 const Value OrderedMap<Key, Value>::operator[](const Key &key) const
 {
     return value(key);
+}
+
+// Overload the output operator to allow OrderedMap to be printed using qDebug()
+template<typename Key, typename Value>
+QDebug operator<<(QDebug debug, const OrderedMap<Key, Value>& map)
+{
+    QDebugStateSaver saver(debug); // Save the current debug state
+    debug.nospace() << "OrderedMap[";
+
+    bool first = true;
+    for (const auto &key : map.keys()) {
+        if (!first) {
+            debug.nospace() << ", ";
+        }
+        first = false;
+        debug.nospace() << "(" << key << ", " << map.value(key) << ")";
+    }
+
+    debug.nospace() << "]";
+    return debug;
 }
 
 template <typename Key, typename Value>
